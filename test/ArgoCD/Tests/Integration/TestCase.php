@@ -22,7 +22,7 @@ class TestCase extends \PHPUnit\Framework\TestCase
     public function initClient()
     {
         // You have to specify authentication here to run full suite
-        $client = new Client();
+        $client = new Client('http://localhost');
 
         try {
             $client->api('current_user')->show();

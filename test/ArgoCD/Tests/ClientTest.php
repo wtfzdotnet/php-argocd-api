@@ -20,7 +20,7 @@ class ClientTest extends \PHPUnit\Framework\TestCase
      */
     public function shouldNotHaveToPassHttpClientToConstructor()
     {
-        $client = new Client();
+        $client = new Client('http://localhost');
 
         $this->assertInstanceOf(ClientInterface::class, $client->getHttpClient());
     }
@@ -33,74 +33,49 @@ class ClientTest extends \PHPUnit\Framework\TestCase
         $httpClientMock = $this->getMockBuilder(ClientInterface::class)
             ->getMock();
 
-        $client = Client::createWithHttpClient($httpClientMock);
+        $client = Client::createWithHttpClient($httpClientMock, 'http://localhost');
 
         $this->assertInstanceOf(ClientInterface::class, $client->getHttpClient());
     }
 
     /**
      * @test
-     *
-     * @dataProvider getAuthenticationFullData
      */
-    public function shouldAuthenticateUsingAllGivenParameters($login, $password, $method)
+    public function shouldSetBearerTokenAuthenticationPluginOnAuthenticate()
     {
+        $testToken = 'test_token';
+
         $builder = $this->getMockBuilder(Builder::class)
             ->setMethods(['addPlugin', 'removePlugin'])
-            ->disableOriginalConstructor()
+            ->disableOriginalConstructor() // Use disableOriginalConstructor if Builder has a complex constructor
             ->getMock();
-        $builder->expects($this->once())
-            ->method('addPlugin')
-            ->with($this->equalTo(new Authentication($login, $password, $method)));
+
+        // Expect removePlugin to be called to clear any existing auth
         $builder->expects($this->once())
             ->method('removePlugin')
-            ->with(Authentication::class);
+            ->with($this->equalTo(Authentication::class));
 
-        $client = $this->getMockBuilder(\ArgoCD\Client::class)
-            ->disableOriginalConstructor()
+        // Expect addPlugin to be called with the new Authentication plugin
+        $builder->expects($this->once())
+            ->method('addPlugin')
+            ->with($this->equalTo(new Authentication($testToken, AuthMethod::BEARER_TOKEN)));
+
+        $client = $this->getMockBuilder(Client::class)
+            ->setConstructorArgs(['http://localhost']) // Ensure constructor is called with necessary args
             ->setMethods(['getHttpClientBuilder'])
             ->getMock();
+
         $client->expects($this->any())
             ->method('getHttpClientBuilder')
             ->willReturn($builder);
 
-        $client->authenticate($login, $password, $method);
-    }
+        // Mock the SessionService and its create method if client->authenticate directly calls it
+        // For this refactoring, we assume authenticate directly configures the builder as per task
+        // If authenticate itself makes an API call to validate the token, that would need further mocking.
+        // Based on Client::authenticate method, it does try to make a call if password is not null.
+        // However, we are calling with only a token.
 
-    public function getAuthenticationFullData()
-    {
-        return [
-            ['token', null, AuthMethod::ACCESS_TOKEN],
-            ['client_id', 'client_secret', AuthMethod::CLIENT_ID],
-            ['token', null, AuthMethod::JWT],
-        ];
-    }
-
-    /**
-     * @test
-     */
-    public function shouldAuthenticateUsingGivenParameters()
-    {
-        $builder = $this->getMockBuilder(Builder::class)
-            ->setMethods(['addPlugin', 'removePlugin'])
-            ->getMock();
-        $builder->expects($this->once())
-            ->method('addPlugin')
-            ->with($this->equalTo(new Authentication('token', null, AuthMethod::ACCESS_TOKEN)));
-
-        $builder->expects($this->once())
-            ->method('removePlugin')
-            ->with(Authentication::class);
-
-        $client = $this->getMockBuilder(\ArgoCD\Client::class)
-            ->disableOriginalConstructor()
-            ->setMethods(['getHttpClientBuilder'])
-            ->getMock();
-        $client->expects($this->any())
-            ->method('getHttpClientBuilder')
-            ->willReturn($builder);
-
-        $client->authenticate('token', AuthMethod::ACCESS_TOKEN);
+        $client->authenticate($testToken);
     }
 
     /**
@@ -109,7 +84,7 @@ class ClientTest extends \PHPUnit\Framework\TestCase
     public function shouldThrowExceptionWhenAuthenticatingWithoutMethodSet()
     {
         $this->expectException(InvalidArgumentException::class);
-        $client = new Client();
+        $client = new Client('http://localhost');
 
         $client->authenticate('login', null, null);
     }
@@ -121,7 +96,7 @@ class ClientTest extends \PHPUnit\Framework\TestCase
      */
     public function shouldGetApiInstance($apiName, $class)
     {
-        $client = new Client();
+        $client = new Client('http://localhost');
 
         $this->assertInstanceOf($class, $client->api($apiName));
     }
@@ -133,7 +108,7 @@ class ClientTest extends \PHPUnit\Framework\TestCase
      */
     public function shouldGetMagicApiInstance($apiName, $class)
     {
-        $client = new Client();
+        $client = new Client('http://localhost');
 
         $this->assertInstanceOf($class, $client->$apiName());
     }
@@ -144,7 +119,19 @@ class ClientTest extends \PHPUnit\Framework\TestCase
     public function shouldNotGetApiInstance()
     {
         $this->expectException(InvalidArgumentException::class);
-        $client = new Client();
+        $client = new Client('http://localhost');
         $client->api('do_not_exist');
+    }
+
+    public function getApiClassesProvider()
+    {
+        return [
+            ['session', \ArgoCD\Api\SessionService::class],
+            ['sessionservice', \ArgoCD\Api\SessionService::class],
+            ['application', \ArgoCD\Api\ApplicationService::class],
+            ['applicationservice', \ArgoCD\Api\ApplicationService::class],
+            ['account', \ArgoCD\Api\AccountService::class],
+            ['accountservice', \ArgoCD\Api\AccountService::class],
+        ];
     }
 }
