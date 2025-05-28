@@ -2,7 +2,7 @@
 
 namespace ArgoCD\Tests\Api\Organization;
 
-use ArgoCD\Exception\MissingArgumentException;
+use ArgoCD\Exception\InvalidArgumentException;
 use ArgoCD\Tests\Api\TestCase;
 
 class TeamsTest extends TestCase
@@ -204,7 +204,7 @@ class TeamsTest extends TestCase
      */
     public function shouldNotCreateTeamWithoutName()
     {
-        $this->expectException(MissingArgumentException::class);
+        $this->expectException(InvalidArgumentException::class);
         $data = [];
 
         $api = $this->getApiMock();
@@ -270,7 +270,7 @@ class TeamsTest extends TestCase
      */
     public function shouldNotUpdateTeamWithoutName()
     {
-        $this->expectException(MissingArgumentException::class);
+        $this->expectException(InvalidArgumentException::class);
         $data = [];
 
         $api = $this->getApiMock();
