@@ -10,6 +10,7 @@ use ArgoCD\HttpClient\Builder;
 use ArgoCD\HttpClient\Plugin\ArgoCDExceptionThrower;
 use ArgoCD\HttpClient\Plugin\Authentication;
 use ArgoCD\HttpClient\Plugin\ExceptionThrower;
+use ArgoCD\HttpClient\Plugin\PathPrepend;
 use Http\Client\Common\HttpMethodsClientInterface;
 use Http\Client\Common\Plugin;
 use Http\Discovery\Psr17FactoryDiscovery;
@@ -65,7 +66,7 @@ class Client
 
         $uri = Psr17FactoryDiscovery::findUriFactory()->createUri($serverUrl);
         $builder->addPlugin(new Plugin\AddHostPlugin($uri));
-        $builder->addPlugin(new Plugin\PathPrepend('/api/v1'));
+        $builder->addPlugin(new PathPrepend('/api/v1'));
 
         $builder->addPlugin(new Plugin\HeaderDefaultsPlugin([
             'User-Agent' => 'argocd-php-client (https://github.com/your-vendor/argocd-php-client)',
@@ -177,23 +178,23 @@ class Client
     {
         $builder = $this->getHttpClientBuilder();
         $builder->removePlugin(Plugin\AddHostPlugin::class);
-        $builder->removePlugin(Plugin\PathPrepend::class);
+        $builder->removePlugin(PathPrepend::class);
 
         $uri = Psr17FactoryDiscovery::findUriFactory()->createUri($serverUrl);
         $builder->addPlugin(new Plugin\AddHostPlugin($uri));
 
         if (strpos($serverUrl, '/api/v1') === false) {
-            $builder->addPlugin(new Plugin\PathPrepend('/api/v1'));
+            $builder->addPlugin(new PathPrepend('/api/v1'));
         }
     }
 
     /**
      * @param string $name
-     * @param array  $args
+     * @param array $args
      *
      * @return AbstractApi
      */
-    public function __call($name, $args): AbstractApi
+    public function __call(string $name, array $args): AbstractApi
     {
         try {
             return $this->api($name);
